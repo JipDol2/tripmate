@@ -1,8 +1,8 @@
 # TripMate MVP
 
-여행 동행을 구하는 모바일 우선 웹/웹뷰 앱 프로토타입입니다.
+TripMate is a travel companion matching MVP. Users can register, create companion posts, apply to join trips, review incoming applications, and manage basic profile and safety actions such as reporting or blocking other users.
 
-## 기술 스택
+## Tech Stack
 
 ### Backend
 - Java 17
@@ -11,72 +11,209 @@
 - JWT
 - Spring Data JPA
 - PostgreSQL
+- Redis
 
 ### Frontend
-- Vite
-- React
+- React 18
+- Vite 5
 - React Router
 - Axios
 
-## 주요 기능
+## Main Features
 
-- 회원가입 / 로그인
-- 내 프로필 조회/수정
-- 동행 모집글 목록 조회
-- 동행 모집글 상세 조회
-- 동행 모집글 작성
-- 동행 신청
-- 내가 신청한 내역 조회
-- 내 글에 들어온 신청 조회
-- 신청 수락/거절
-- 신고
-- 사용자 차단
+- User registration and login
+- Profile lookup and update
+- Companion post list and detail view
+- Companion post creation
+- Trip application submission
+- Sent application history
+- Received application history for a post
+- Application approval and rejection
+- User reporting
+- User blocking
 
-## 실행 방법
+## Project Structure
 
-### 1. PostgreSQL 실행
-
-```bash
-docker compose up -d
+```text
+tripmate-mvp/
+  backend/    Spring Boot API server
+  frontend/   React + Vite web client
 ```
 
-### 2. Backend 실행
+## Prerequisites
+
+Install the following before running the project locally:
+
+- Java 17
+- Node.js 18 or newer
+- npm
+- Docker Desktop
+
+You can verify your local tools with:
+
+```bash
+java -version
+node -v
+npm -v
+docker -v
+docker compose version
+```
+
+## Local Development Setup
+
+### 1. Start PostgreSQL and Redis
+
+For full local development, use the compose file inside `backend/`. It starts both PostgreSQL and Redis, which the backend uses for token-related Redis operations.
+
+From the repository root:
+
+```bash
+docker compose -f backend/docker-compose.yml up -d
+```
+
+Check that both containers are running:
+
+```bash
+docker ps
+```
+
+Expected services:
+
+- `tripmate-postgres`
+- `tripmate-redis`
+
+To stop them later:
+
+```bash
+docker compose -f backend/docker-compose.yml down
+```
+
+To stop them and remove volumes:
+
+```bash
+docker compose -f backend/docker-compose.yml down -v
+```
+
+Note:
+The root-level `docker-compose.yml` only starts PostgreSQL. It is not the recommended option for full local development because the backend also uses Redis.
+
+### 2. Run the Backend
+
+Move into the backend directory:
 
 ```bash
 cd backend
+```
+
+Run the Spring Boot application with the Gradle wrapper.
+
+macOS / Linux:
+
+```bash
 ./gradlew bootRun
 ```
 
-Windows에서는:
+Windows PowerShell:
 
 ```powershell
-cd backend
-gradlew.bat bootRun
+.\gradlew.bat bootRun
 ```
 
-기본 API 주소:
+Default backend URL:
 
 ```text
 http://localhost:8080
 ```
 
-### 3. Frontend 실행
+Base API path:
+
+```text
+http://localhost:8080/api
+```
+
+Important backend defaults from `backend/src/main/resources/application.yml`:
+
+- `SERVER_PORT=8080`
+- `DB_URL=jdbc:p6spy:postgresql://localhost:5432/tripmate`
+- `DB_USERNAME=tripmate`
+- `DB_PASSWORD=tripmate`
+- `REDIS_HOST=localhost`
+- `REDIS_PORT=6379`
+- `JWT_SECRET=CHANGE_ME_CHANGE_ME_CHANGE_ME_CHANGE_ME_1234567890`
+- `JWT_EXPIRATION_MS=86400000`
+
+You can override them when starting the backend.
+
+Windows PowerShell example:
+
+```powershell
+$env:DB_URL="jdbc:p6spy:postgresql://localhost:5432/tripmate"
+$env:DB_USERNAME="tripmate"
+$env:DB_PASSWORD="tripmate"
+$env:REDIS_HOST="localhost"
+$env:REDIS_PORT="6379"
+$env:JWT_SECRET="replace-with-a-long-random-secret"
+.\gradlew.bat bootRun
+```
+
+macOS / Linux example:
+
+```bash
+DB_URL=jdbc:p6spy:postgresql://localhost:5432/tripmate \
+DB_USERNAME=tripmate \
+DB_PASSWORD=tripmate \
+REDIS_HOST=localhost \
+REDIS_PORT=6379 \
+JWT_SECRET=replace-with-a-long-random-secret \
+./gradlew bootRun
+```
+
+### 3. Run the Frontend
+
+Open a second terminal, then move into the frontend directory:
 
 ```bash
 cd frontend
+```
+
+Install packages:
+
+```bash
 npm install
+```
+
+Start the Vite development server:
+
+```bash
 npm run dev
 ```
 
-기본 프론트 주소:
+Default frontend URL:
 
 ```text
 http://localhost:5173
 ```
 
-## 테스트 계정 만들기
+The frontend is currently configured to call:
 
-프론트에서 회원가입하거나 아래 API를 호출하세요.
+```text
+http://localhost:8080/api
+```
+
+That base URL is hardcoded in `frontend/src/lib/api.js`. If you run the backend on a different host or port, update that file accordingly.
+
+## Recommended Run Order
+
+1. Start PostgreSQL and Redis with Docker Compose.
+2. Start the backend on port `8080`.
+3. Start the frontend on port `5173`.
+4. Open `http://localhost:5173` in your browser.
+
+If the frontend loads but API requests fail, verify that the backend is running on `http://localhost:8080` and that Docker containers for PostgreSQL and Redis are healthy.
+
+## First Test Account
+
+You can create a test account from the UI, or call the registration API directly:
 
 ```http
 POST /api/auth/register
@@ -85,22 +222,66 @@ Content-Type: application/json
 {
   "email": "test@test.com",
   "password": "1234",
-  "nickname": "성주",
-  "ageRange": "30대",
+  "nickname": "TestUser",
+  "ageRange": "30s",
   "gender": "MALE"
 }
 ```
 
-## 다음에 개선하면 좋은 것
+Full local URL:
 
-- Refresh Token
-- 카카오/구글/애플 로그인
-- 이미지 업로드(S3)
-- 실시간 채팅
-- 푸시 알림
-- 후기/매너 점수
-- 휴대폰 본인인증
-- 관리자 신고 처리 화면
-- 페이지네이션 고도화
-- React Query 도입
-- Capacitor로 앱 패키징
+```text
+http://localhost:8080/api/auth/register
+```
+
+## Troubleshooting
+
+### Port 5432, 6379, 8080, or 5173 is already in use
+
+Stop the process using that port, or change the relevant port mapping and application setting before restarting the service.
+
+### Backend cannot connect to PostgreSQL
+
+Check the container status:
+
+```bash
+docker ps
+```
+
+Then inspect logs:
+
+```bash
+docker logs tripmate-postgres
+```
+
+### Backend cannot connect to Redis
+
+Inspect the Redis container logs:
+
+```bash
+docker logs tripmate-redis
+```
+
+### CORS errors in the browser
+
+The backend currently allows these frontend origins:
+
+- `http://localhost:5173`
+- `http://localhost:4173`
+- `http://127.0.0.1:5173`
+
+If you use a different frontend origin, update the CORS configuration in `backend/src/main/java/com/tripmate/config/SecurityConfig.java`.
+
+## Future Improvements
+
+- Refresh token flow
+- Kakao or Google social login
+- Image upload with S3
+- Real-time chat
+- Push notifications
+- Review and trust scoring
+- Identity verification
+- Admin moderation screen
+- Pagination and advanced filtering
+- React Query integration
+- Mobile packaging with Capacitor
