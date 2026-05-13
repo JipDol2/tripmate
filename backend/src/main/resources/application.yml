@@ -1,0 +1,27 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:p6spy:postgresql://localhost:5432/tripmate}
+    driver-class-name: ${DB_DRIVER:com.p6spy.engine.spy.P6SpyDriver}
+    username: ${DB_USERNAME:tripmate}
+    password: ${DB_PASSWORD:tripmate}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+    open-in-view: false
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      repositories:
+        enabled: false
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:CHANGE_ME_CHANGE_ME_CHANGE_ME_CHANGE_ME_1234567890}
+    expiration-ms: ${JWT_EXPIRATION_MS:86400000}
