@@ -41,9 +41,12 @@ public class CompanionPostController {
             @RequestParam(required = false) String cityCode,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
-            @RequestParam(required = false) List<CompanionPurpose> purposes
+            @RequestParam(required = false) String timeSlot,
+            @RequestParam(required = false) List<CompanionPurpose> purposes,
+            @RequestParam(required = false) List<String> agePreferences,
+            @RequestParam(required = false) String genderPreference
     ) {
-        return companionPostRepository.search(countryCode, cityCode, startDate, endDate, purposes)
+        return companionPostRepository.search(countryCode, cityCode, startDate, endDate, timeSlot, purposes, agePreferences, genderPreference)
                 .stream()
                 .map(post -> PostResponse.from(post, locationService))
                 .toList();
@@ -74,6 +77,7 @@ public class CompanionPostController {
                 request.purposes(),
                 request.maxParticipants(),
                 request.genderPreference(),
+                request.agePreferences(),
                 request.title(),
                 request.content(),
                 request.travelStyles()

@@ -20,7 +20,9 @@ public class CompanionPostRepositoryImpl implements CompanionPostRepositoryCusto
 
     @Override
     public List<CompanionPost> search(String countryCode, String cityCode, LocalDate startDate, LocalDate endDate,
-                                      List<CompanionPurpose> purposes) {
+                                      String timeSlot,
+                                      List<CompanionPurpose> purposes, List<String> agePreferences,
+                                      String genderPreference) {
         return queryFactory
                 .selectFrom(companionPost)
                 .distinct()
@@ -31,7 +33,10 @@ public class CompanionPostRepositoryImpl implements CompanionPostRepositoryCusto
                         countryCodeEq(countryCode),
                         cityCodeEq(cityCode),
                         companionDateEq(startDate, endDate),
-                        purposesIn(purposes)
+                        timeSlotEq(timeSlot),
+                        purposesIn(purposes),
+                        agePreferencesIn(agePreferences),
+                        genderPreferenceEq(genderPreference)
                 )
                 .orderBy(companionPost.createdAt.desc())
                 .fetch();
@@ -70,5 +75,26 @@ public class CompanionPostRepositoryImpl implements CompanionPostRepositoryCusto
             return null;
         }
         return companionPost.purposes.any().in(purposes);
+    }
+
+    private BooleanExpression timeSlotEq(String timeSlot) {
+        if (timeSlot == null || timeSlot.isBlank()) {
+            return null;
+        }
+        return companionPost.timeSlot.eq(timeSlot);
+    }
+
+    private BooleanExpression agePreferencesIn(List<String> agePreferences) {
+        if (agePreferences == null || agePreferences.isEmpty()) {
+            return null;
+        }
+        return companionPost.agePreferences.any().in(agePreferences);
+    }
+
+    private BooleanExpression genderPreferenceEq(String genderPreference) {
+        if (genderPreference == null || genderPreference.isBlank()) {
+            return null;
+        }
+        return companionPost.genderPreference.eq(genderPreference);
     }
 }

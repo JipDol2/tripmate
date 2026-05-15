@@ -44,6 +44,11 @@ public class CompanionPost extends BaseEntity {
     @Column(length=40)
     private String genderPreference;
 
+    @ElementCollection
+    @CollectionTable(name = "post_age_preferences", joinColumns = @JoinColumn(name = "post_id"))
+    @Column(name = "age_range", length = 20)
+    private List<String> agePreferences = new ArrayList<>();
+
     @Column(nullable=false, length=100)
     private String title;
 
@@ -63,8 +68,8 @@ public class CompanionPost extends BaseEntity {
 
     public CompanionPost(User author, String cityCode, LocalDate startDate, LocalDate endDate, String timeSlot,
                          List<CompanionPurpose> purposes,
-                         int maxParticipants, String genderPreference, String title, String content,
-                         List<String> travelStyles) {
+                         int maxParticipants, String genderPreference, List<String> agePreferences,
+                         String title, String content, List<String> travelStyles) {
         this.author = author;
         this.cityCode = cityCode;
         this.startDate = startDate;
@@ -73,6 +78,7 @@ public class CompanionPost extends BaseEntity {
         if (purposes != null) this.purposes.addAll(purposes);
         this.maxParticipants = maxParticipants;
         this.genderPreference = genderPreference;
+        if (agePreferences != null) this.agePreferences.addAll(agePreferences);
         this.title = title;
         this.content = content;
         if (travelStyles != null) this.travelStyles.addAll(travelStyles);

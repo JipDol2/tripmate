@@ -23,6 +23,7 @@ public record PostResponse(
         List<CompanionPurpose> purposes,
         int maxParticipants,
         String genderPreference,
+        List<String> agePreferences,
         String title,
         String content,
         List<String> travelStyles,
@@ -48,6 +49,9 @@ public record PostResponse(
                 List.copyOf(post.getPurposes()),
                 post.getMaxParticipants(),
                 post.getGenderPreference(),
+                post.getAgePreferences().stream()
+                        .filter(Objects::nonNull)
+                        .toList(),
                 post.getTitle(),
                 post.getContent(),
                 post.getTravelStyles().stream()
