@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { api, getErrorMessage } from "../lib/api";
 import { getCountryCityOptions } from "../lib/locationApi";
 import {
@@ -23,8 +23,92 @@ const purposeOptions = [
   { label: "나이트라이프", value: "NIGHTLIFE" },
   { label: "휴식", value: "RELAXATION" },
 ];
+const agePreferenceOptions = ["20대", "30대", "40대", "50대", "60대"];
+const genderPreferenceOptions = ["남성만", "여성만"];
+const timeSlotOptions = ["아침", "점심", "오후", "저녁", "종일"];
+const FILTER_STORAGE_KEY = "tripmate_post_list_filters";
+const emptyFilters = {
+  countryCode: "",
+  cityCode: "",
+  startDate: "",
+  endDate: "",
+  timeSlot: "",
+  purposes: [],
+  agePreferences: [],
+  genderPreference: "",
+};
+
+function normalizeFilters(filters) {
+  return {
+    ...emptyFilters,
+    ...filters,
+    purposes: Array.isArray(filters?.purposes) ? filters.purposes : [],
+    agePreferences: Array.isArray(filters?.agePreferences) ? filters.agePreferences : [],
+  };
+}
+
 function getPurposeLabel(value) {
   return purposeOptions.find((option) => option.value === value)?.label || value;
+}
+
+function getFiltersFromSearchParams(searchParams) {
+  return {
+    ...emptyFilters,
+    countryCode: searchParams.get("countryCode") || "",
+    cityCode: searchParams.get("cityCode") || "",
+    startDate: searchParams.get("startDate") || "",
+    endDate: searchParams.get("endDate") || "",
+    timeSlot: searchParams.get("timeSlot") || "",
+    purposes: searchParams.getAll("purposes"),
+    agePreferences: searchParams.getAll("agePreferences"),
+    genderPreference: searchParams.get("genderPreference") || "",
+  };
+}
+
+function hasFilterSearchParams(searchParams) {
+  return Array.from(searchParams.keys()).some((key) => key in emptyFilters);
+}
+
+function getStoredFilters() {
+  try {
+    const value = sessionStorage.getItem(FILTER_STORAGE_KEY);
+    return value ? normalizeFilters(JSON.parse(value)) : null;
+  } catch {
+    return null;
+  }
+}
+
+function getInitialFilters(searchParams) {
+  if (hasFilterSearchParams(searchParams)) {
+    return getFiltersFromSearchParams(searchParams);
+  }
+
+  return getStoredFilters() || emptyFilters;
+}
+
+function storeFilters(filters) {
+  sessionStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(normalizeFilters(filters)));
+}
+
+function createSearchParamsFromFilters(filters) {
+  const searchParams = new URLSearchParams();
+
+  Object.entries(filters).forEach(([key, value]) => {
+    if (Array.isArray(value)) {
+      value.forEach((item) => {
+        if (item) {
+          searchParams.append(key, item);
+        }
+      });
+      return;
+    }
+
+    if (value) {
+      searchParams.set(key, value);
+    }
+  });
+
+  return searchParams;
 }
 
 function filterPostsByDateRange(items, startDate, endDate) {
@@ -49,8 +133,9 @@ function filterPostsByDateRange(items, startDate, endDate) {
 }
 
 export default function PostListPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [posts, setPosts] = useState([]);
-  const [filters, setFilters] = useState({ countryCode: "", cityCode: "", startDate: "", endDate: "", purposes: [] });
+  const [filters, setFilters] = useState(() => getInitialFilters(searchParams));
   const [locationOptions, setLocationOptions] = useState([]);
   const [loadingLocations, setLoadingLocations] = useState(true);
   const [locationError, setLocationError] = useState("");
@@ -58,15 +143,18 @@ export default function PostListPage() {
   const [activeFilterTab, setActiveFilterTab] = useState("location");
   const [displayedMonth, setDisplayedMonth] = useState(() => createMonthStart(""));
 
-  const loadPosts = async () => {
+  const loadPosts = async (nextFilters = filters) => {
     try {
       const res = await api.get("/posts", {
         params: {
-          countryCode: filters.countryCode || undefined,
-          cityCode: filters.cityCode || undefined,
-          startDate: filters.startDate || undefined,
-          endDate: filters.endDate || undefined,
-          purposes: filters.purposes,
+          countryCode: nextFilters.countryCode || undefined,
+          cityCode: nextFilters.cityCode || undefined,
+          startDate: nextFilters.startDate || undefined,
+          endDate: nextFilters.endDate || undefined,
+          timeSlot: nextFilters.timeSlot || undefined,
+          purposes: nextFilters.purposes,
+          agePreferences: nextFilters.agePreferences,
+          genderPreference: nextFilters.genderPreference || undefined,
         },
         paramsSerializer: (params) => {
           const searchParams = new URLSearchParams();
@@ -91,15 +179,17 @@ export default function PostListPage() {
           return searchParams.toString();
         },
       });
-      setPosts(filterPostsByDateRange(res.data, filters.startDate, filters.endDate));
+      setPosts(filterPostsByDateRange(res.data, nextFilters.startDate, nextFilters.endDate));
     } catch (error) {
       alert(getErrorMessage(error));
     }
   };
 
   useEffect(() => {
-    loadPosts();
-  }, []);
+    const nextFilters = getInitialFilters(searchParams);
+    setFilters(nextFilters);
+    loadPosts(nextFilters);
+  }, [searchParams]);
 
   useEffect(() => {
     let active = true;
@@ -163,7 +253,9 @@ export default function PostListPage() {
   };
 
   const resetFilters = () => {
-    setFilters({ countryCode: "", cityCode: "", startDate: "", endDate: "", purposes: [] });
+    setFilters(emptyFilters);
+    sessionStorage.removeItem(FILTER_STORAGE_KEY);
+    setSearchParams({});
   };
 
   const applyFilters = async () => {
@@ -172,7 +264,9 @@ export default function PostListPage() {
       return;
     }
 
-    await loadPosts();
+    await loadPosts(filters);
+    storeFilters(filters);
+    setSearchParams(createSearchParamsFromFilters(filters));
     closeFilterSheet();
   };
 
@@ -182,9 +276,14 @@ export default function PostListPage() {
   const dateLabel = filters.startDate && filters.endDate
     ? `${formatDateLabel(filters.startDate)} - ${formatDateLabel(filters.endDate)}`
     : "날짜";
-  const purposeLabel = filters.purposes.length > 0
-    ? `동행 유형 ${filters.purposes.length}`
+  const typeCount = filters.purposes.length + (filters.timeSlot ? 1 : 0);
+  const purposeLabel = typeCount > 0
+    ? `동행 유형 ${typeCount}`
     : "동행 유형";
+  const conditionCount = filters.agePreferences.length + (filters.genderPreference ? 1 : 0);
+  const conditionLabel = conditionCount > 0
+    ? `동행 조건 ${conditionCount}`
+    : "동행 조건";
   const calendarDays = createCalendarDays(displayedMonth);
   const monthTitle = `${displayedMonth.getFullYear()}년 ${displayedMonth.getMonth() + 1}월`;
   const selectDate = (dateValue) => {
@@ -239,6 +338,10 @@ export default function PostListPage() {
           </button>
           <button type="button" className="filter-pill" onClick={() => openFilterSheet("purpose")}>
             <span>{purposeLabel}</span>
+            <span className="filter-pill-arrow">v</span>
+          </button>
+          <button type="button" className="filter-pill" onClick={() => openFilterSheet("condition")}>
+            <span>{conditionLabel}</span>
             <span className="filter-pill-arrow">v</span>
           </button>
         </div>
@@ -300,6 +403,13 @@ export default function PostListPage() {
                 onClick={() => setActiveFilterTab("purpose")}
               >
                 동행 유형
+              </button>
+              <button
+                type="button"
+                className={activeFilterTab === "condition" ? "filter-sheet-tab active" : "filter-sheet-tab"}
+                onClick={() => setActiveFilterTab("condition")}
+              >
+                동행 조건
               </button>
             </div>
 
@@ -401,22 +511,98 @@ export default function PostListPage() {
 
               {activeFilterTab === "purpose" && (
                 <div className="filter-panel">
-                  <div className="purpose-chip-grid">
-                    {purposeOptions.map((purpose) => (
-                      <button
-                        key={purpose.value}
-                        type="button"
-                        className={filters.purposes.includes(purpose.value) ? "purpose-chip active" : "purpose-chip"}
-                        onClick={() => setFilters((current) => ({
-                          ...current,
-                          purposes: current.purposes.includes(purpose.value)
-                            ? current.purposes.filter((item) => item !== purpose.value)
-                            : [...current.purposes, purpose.value],
-                        }))}
-                      >
-                        {purpose.label}
-                      </button>
-                    ))}
+                  <div className="filter-section-title">
+                    <strong>동행 유형</strong>
+                    <span>시간대와 함께할 활동을 고르세요.</span>
+                  </div>
+
+                  <div className="condition-group">
+                    <strong>시간대</strong>
+                    <div className="purpose-chip-grid">
+                      {timeSlotOptions.map((timeSlot) => (
+                        <button
+                          key={timeSlot}
+                          type="button"
+                          className={filters.timeSlot === timeSlot ? "purpose-chip active" : "purpose-chip"}
+                          onClick={() => setFilters((current) => ({
+                            ...current,
+                            timeSlot: current.timeSlot === timeSlot ? "" : timeSlot,
+                          }))}
+                        >
+                          {timeSlot}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="condition-group">
+                    <strong>활동</strong>
+                    <div className="purpose-chip-grid">
+                      {purposeOptions.map((purpose) => (
+                        <button
+                          key={purpose.value}
+                          type="button"
+                          className={filters.purposes.includes(purpose.value) ? "purpose-chip active" : "purpose-chip"}
+                          onClick={() => setFilters((current) => ({
+                            ...current,
+                            purposes: current.purposes.includes(purpose.value)
+                              ? current.purposes.filter((item) => item !== purpose.value)
+                              : [...current.purposes, purpose.value],
+                          }))}
+                        >
+                          {purpose.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeFilterTab === "condition" && (
+                <div className="filter-panel">
+                  <div className="filter-section-title">
+                    <strong>동행 조건</strong>
+                    <span>작성자가 원하는 나이대와 성별 조건으로 찾습니다.</span>
+                  </div>
+
+                  <div className="condition-group">
+                    <strong>나이대</strong>
+                    <div className="purpose-chip-grid">
+                      {agePreferenceOptions.map((ageRange) => (
+                        <button
+                          key={ageRange}
+                          type="button"
+                          className={filters.agePreferences.includes(ageRange) ? "purpose-chip active" : "purpose-chip"}
+                          onClick={() => setFilters((current) => ({
+                            ...current,
+                            agePreferences: current.agePreferences.includes(ageRange)
+                              ? current.agePreferences.filter((item) => item !== ageRange)
+                              : [...current.agePreferences, ageRange],
+                          }))}
+                        >
+                          {ageRange}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="condition-group">
+                    <strong>성별 조건</strong>
+                    <div className="purpose-chip-grid">
+                      {genderPreferenceOptions.map((genderPreference) => (
+                        <button
+                          key={genderPreference}
+                          type="button"
+                          className={filters.genderPreference === genderPreference ? "purpose-chip active" : "purpose-chip"}
+                          onClick={() => setFilters((current) => ({
+                            ...current,
+                            genderPreference: current.genderPreference === genderPreference ? "" : genderPreference,
+                          }))}
+                        >
+                          {genderPreference}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}

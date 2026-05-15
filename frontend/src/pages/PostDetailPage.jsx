@@ -5,6 +5,19 @@ import { useAuth } from "../context/AuthContext";
 import { formatDateRange } from "../lib/postDate";
 import { getPurposeLabel } from "../lib/purposeOptions";
 
+function formatWrittenDate(value) {
+  if (!value) return "";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}.${month}.${day}`;
+}
+
 export default function PostDetailPage() {
   const { postId } = useParams();
   const { user } = useAuth();
@@ -63,29 +76,100 @@ export default function PostDetailPage() {
   const purposeText = post.purposes?.length
     ? post.purposes.map(getPurposeLabel).join(", ")
     : getPurposeLabel(post.purpose);
-  const metaText = [dateText, post.timeSlot, purposeText].filter(Boolean).join(" · ");
+  const authorMeta = [post.authorAgeRange, post.authorGender].filter(Boolean).join(" · ");
+  const writtenDate = formatWrittenDate(post.createdAt || post.createdDate);
+  const agePreferences = post.agePreferences
+    || post.preferredAgeRanges
+    || post.allowedAgeRanges
+    || post.targetAgeRanges
+    || [];
+  const conditionChips = [
+    ...(agePreferences.length > 0 ? agePreferences : ["나이 무관"]),
+    post.genderPreference && post.genderPreference !== "무관" ? post.genderPreference : "성별 무관",
+    `${post.maxParticipants}명 모집`,
+  ];
+  const typeChips = [
+    post.timeSlot,
+    ...(post.purposes?.map(getPurposeLabel) || (post.purpose ? [getPurposeLabel(post.purpose)] : [])),
+  ].filter(Boolean);
 
   return (
     <section className="page">
-      <article className="detail-card">
-        <div className="card-top">
-          <span className="badge">{post.city}</span>
-          <span className={`status ${post.status === "OPEN" ? "open" : ""}`}>{post.status}</span>
-        </div>
-        <h1>{post.title}</h1>
-        <p className="meta">{metaText}</p>
-        <p className="meta">모집 인원: {post.maxParticipants}명 · 성별 조건: {post.genderPreference || "무관"}</p>
+      <article className="trip-detail">
+        <header className="detail-header">
+          <div className="card-top">
+            <span className="badge">{post.city}</span>
+            <span className={`status ${post.status === "OPEN" ? "open" : ""}`}>{post.status}</span>
+          </div>
 
-        <div className="profile-box">
-          <strong>{post.authorNickname}</strong>
-          <span>{post.authorAgeRange} · {post.authorGender}</span>
-        </div>
+          <h1 className="detail-title">{post.title}</h1>
+          {writtenDate && <p className="detail-submeta">{writtenDate} 작성</p>}
+        </header>
 
-        <p className="content">{post.content}</p>
+        <section className="detail-section">
+          <h2>여행 일정</h2>
+          <div className="detail-schedule-card">
+            <div className="detail-schedule-row">
+              <span className="detail-schedule-label">일정</span>
+              <strong>{dateText}</strong>
+            </div>
+            <div className="detail-schedule-row">
+              <span className="detail-schedule-label">지역</span>
+              <strong>{post.city}</strong>
+            </div>
+            {post.timeSlot && (
+              <div className="detail-schedule-row">
+                <span className="detail-schedule-label">시간</span>
+                <strong>{post.timeSlot}</strong>
+              </div>
+            )}
+            <div className="detail-schedule-row">
+              <span className="detail-schedule-label">목적</span>
+              <strong>{purposeText}</strong>
+            </div>
+          </div>
+        </section>
 
-        <div className="tag-row">
-          {post.travelStyles?.map((style) => <span key={style}>{style}</span>)}
-        </div>
+        <section className="detail-section">
+          <h2>여행 소개</h2>
+          <p className="content detail-content">{post.content}</p>
+        </section>
+
+        <section className="detail-section detail-section-compact">
+          <h2>동행 조건</h2>
+          <div className="detail-chip-row">
+            {conditionChips.map((chip) => <span key={chip}>{chip}</span>)}
+          </div>
+        </section>
+
+        {typeChips.length > 0 && (
+          <section className="detail-section detail-section-compact">
+            <h2>동행 유형</h2>
+            <div className="detail-chip-row">
+              {typeChips.map((chip) => <span key={chip}>{chip}</span>)}
+            </div>
+          </section>
+        )}
+
+        {post.travelStyles?.length > 0 && (
+          <section className="detail-section detail-section-compact">
+            <h2>여행 스타일</h2>
+            <div className="detail-chip-row">
+              {post.travelStyles.map((style) => <span key={style}>{style}</span>)}
+            </div>
+          </section>
+        )}
+
+        <section className="detail-section detail-section-compact">
+          <h2>여행장</h2>
+          <div className="detail-host-card">
+            <div className="detail-host-avatar">{post.authorNickname?.slice(0, 1) || "T"}</div>
+            <div>
+              <strong>{post.authorNickname}</strong>
+              {authorMeta && <span>{authorMeta}</span>}
+            </div>
+          </div>
+        </section>
       </article>
 
       {!isAuthor && user && (

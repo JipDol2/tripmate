@@ -1,11 +1,9 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, getErrorMessage } from "../lib/api";
-import { useAuth } from "../context/AuthContext";
 
 export default function RegisterPage() {
   const navigate = useNavigate();
-  const { loginWithToken } = useAuth();
   const [form, setForm] = useState({
     email: "",
     password: "",
@@ -19,9 +17,11 @@ export default function RegisterPage() {
   const onSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await api.post("/auth/register", form);
-      loginWithToken(res.data.token, res.data.user);
-      navigate("/");
+      await api.post("/auth/register", form);
+      navigate("/login", {
+        replace: true,
+        state: { registered: true, email: form.email },
+      });
     } catch (error) {
       alert(getErrorMessage(error));
     }

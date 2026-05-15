@@ -13,6 +13,7 @@ import {
 } from "../lib/postDate";
 
 const styleOptions = ["계획형", "즉흥형", "맛집 선호", "사진 선호", "여유로운 일정", "빡센 일정", "야경 선호", "술 가능"];
+const agePreferenceOptions = ["20대", "30대", "40대", "50대", "60대"];
 
 export default function PostCreatePage() {
   const navigate = useNavigate();
@@ -25,6 +26,7 @@ export default function PostCreatePage() {
     purposes: ["FOOD"],
     maxParticipants: 2,
     genderPreference: "무관",
+    agePreferences: [],
     title: "",
     content: "",
     travelStyles: [],
@@ -101,6 +103,19 @@ export default function PostCreatePage() {
         purposes: exists
           ? current.purposes.filter((item) => item !== purpose)
           : [...current.purposes, purpose],
+      };
+    });
+  };
+
+  const toggleAgePreference = (ageRange) => {
+    setForm((current) => {
+      const exists = current.agePreferences.includes(ageRange);
+
+      return {
+        ...current,
+        agePreferences: exists
+          ? current.agePreferences.filter((item) => item !== ageRange)
+          : [...current.agePreferences, ageRange],
       };
     });
   };
@@ -263,8 +278,8 @@ export default function PostCreatePage() {
 
         <div className="create-section">
           <div className="section-heading">
-            <p className="section-eyebrow">Companion</p>
-            <h2>모집 조건을 설정하세요</h2>
+            <p className="section-eyebrow">Companion Type</p>
+            <h2>어떤 동행을 찾나요?</h2>
           </div>
 
           <select name="timeSlot" value={form.timeSlot} onChange={onChange}>
@@ -295,6 +310,31 @@ export default function PostCreatePage() {
               </button>
             ))}
           </div>
+        </div>
+
+        <div className="create-section">
+          <div className="section-heading">
+            <p className="section-eyebrow">Conditions</p>
+            <h2>동행 조건을 설정하세요</h2>
+          </div>
+
+          <div className="condition-group">
+            <strong>원하는 나이대</strong>
+            <p className="helper">선택하지 않으면 나이 제한 없이 모집합니다.</p>
+            <div className="chip-box">
+              {agePreferenceOptions.map((ageRange) => (
+                <button
+                  key={ageRange}
+                  type="button"
+                  className={form.agePreferences.includes(ageRange) ? "chip selected" : "chip"}
+                  onClick={() => toggleAgePreference(ageRange)}
+                >
+                  {ageRange}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="create-split-grid">
             <input name="maxParticipants" type="number" min="1" max="10" value={form.maxParticipants} onChange={onChange} />
             <select name="genderPreference" value={form.genderPreference} onChange={onChange}>
