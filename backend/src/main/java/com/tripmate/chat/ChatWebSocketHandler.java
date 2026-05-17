@@ -66,7 +66,15 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         }
 
         ChatMessageRequest request = objectMapper.readValue(message.getPayload(), ChatMessageRequest.class);
-        ChatMessageResponse response = chatService.sendMessage(userId, roomId, request.content());
+        ChatMessageResponse response;
+
+        try {
+            response = chatService.sendMessage(userId, roomId, request.content());
+        } catch (Exception ignored) {
+            session.close(CloseStatus.POLICY_VIOLATION);
+            return;
+        }
+
         String payload = objectMapper.writeValueAsString(response);
 
         for (WebSocketSession roomSession : sessionsByRoom.getOrDefault(roomId, Set.of())) {

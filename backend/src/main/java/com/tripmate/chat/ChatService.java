@@ -1,10 +1,9 @@
 package com.tripmate.chat;
 
-import com.tripmate.application.ApplicationStatus;
-import com.tripmate.application.CompanionApplicationRepository;
 import com.tripmate.application.CompanionApplication;
 import com.tripmate.common.ApiException;
 import com.tripmate.post.CompanionPost;
+import com.tripmate.post.CompanionPostRepository;
 import com.tripmate.user.User;
 import com.tripmate.user.UserRepository;
 import java.util.List;
@@ -17,18 +16,18 @@ public class ChatService {
     private final ChatRoomRepository chatRoomRepository;
     private final ChatRoomParticipantRepository participantRepository;
     private final ChatMessageRepository messageRepository;
-    private final CompanionApplicationRepository applicationRepository;
+    private final CompanionPostRepository postRepository;
     private final UserRepository userRepository;
 
     public ChatService(ChatRoomRepository chatRoomRepository,
                        ChatRoomParticipantRepository participantRepository,
                        ChatMessageRepository messageRepository,
-                       CompanionApplicationRepository applicationRepository,
+                       CompanionPostRepository postRepository,
                        UserRepository userRepository) {
         this.chatRoomRepository = chatRoomRepository;
         this.participantRepository = participantRepository;
         this.messageRepository = messageRepository;
-        this.applicationRepository = applicationRepository;
+        this.postRepository = postRepository;
         this.userRepository = userRepository;
     }
 
@@ -38,19 +37,82 @@ public class ChatService {
         ChatRoom room = chatRoomRepository.findByPost(post)
                 .orElseGet(() -> chatRoomRepository.save(new ChatRoom(post)));
 
-        addParticipantIfAbsent(room, post.getAuthor());
-        addParticipantIfAbsent(room, application.getApplicant());
+        addParticipantIfAbsent(room, post.getAuthor(), true);
+        addParticipantIfAbsent(room, application.getApplicant(), true);
         return room;
     }
 
     @Transactional
-    public List<ChatRoomResponse> rooms(Long userId) {
-        ensureRoomsForAcceptedApplications(userId);
+    public ChatRoomResponse startPostChat(Long userId, Long postId) {
+        CompanionPost post = postRepository.findById(postId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Post not found."));
+        User user = userRepository.getReferenceById(userId);
+        ChatRoom room = chatRoomRepository.findByPost(post)
+                .orElseGet(() -> chatRoomRepository.save(new ChatRoom(post)));
 
+        addParticipantIfAbsent(room, post.getAuthor(), true);
+
+        if (!post.getAuthor().getId().equals(userId)) {
+            addParticipantIfAbsent(room, user, false);
+        }
+
+        return toRoomResponse(room, userId);
+    }
+
+    @Transactional
+    public List<ChatRoomResponse> rooms(Long userId) {
         return chatRoomRepository.findRoomsByParticipant(userId)
                 .stream()
-                .map(this::toRoomResponse)
+                .map((room) -> toRoomResponse(room, userId))
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public ChatRoomResponse room(Long userId, Long roomId) {
+        ChatRoom room = getParticipantRoom(userId, roomId);
+        return toRoomResponse(room, userId);
+    }
+
+    @Transactional
+    public ChatRoomResponse joinCompanion(Long userId, Long roomId) {
+        ChatRoom room = getParticipantRoom(userId, roomId);
+        User user = userRepository.getReferenceById(userId);
+        ChatRoomParticipant participant = participantRepository.findByRoomAndUser(room, user)
+                .orElseThrow(() -> new ApiException(HttpStatus.FORBIDDEN, "You cannot access this chat room."));
+
+        if (participant.isKicked()) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "You were removed from this companion.");
+        }
+
+        if (!participant.isCompanionJoined() && joinedCount(room) >= room.getPost().getMaxParticipants()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "This companion is already full.");
+        }
+
+        participant.joinCompanion();
+        return toRoomResponse(room, userId);
+    }
+
+    @Transactional
+    public ChatRoomResponse kickParticipant(Long hostUserId, Long roomId, Long participantId) {
+        ChatRoom room = getParticipantRoom(hostUserId, roomId);
+
+        if (!room.getPost().getAuthor().getId().equals(hostUserId)) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Only the host can remove participants.");
+        }
+
+        ChatRoomParticipant participant = participantRepository.findById(participantId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Participant not found."));
+
+        if (!participant.getRoom().getId().equals(room.getId())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Participant does not belong to this room.");
+        }
+
+        if (participant.getUser().getId().equals(hostUserId)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Host cannot be removed.");
+        }
+
+        participant.kick();
+        return toRoomResponse(room, hostUserId);
     }
 
     @Transactional(readOnly = true)
@@ -83,22 +145,23 @@ public class ChatService {
         }
 
         User user = userRepository.getReferenceById(userId);
-        return participantRepository.existsByRoomAndUser(room, user);
+        return participantRepository.findByRoomAndUser(room, user)
+                .filter((participant) -> !participant.isKicked())
+                .isPresent();
     }
 
-    private void addParticipantIfAbsent(ChatRoom room, User user) {
-        if (!participantRepository.existsByRoomAndUser(room, user)) {
-            participantRepository.save(new ChatRoomParticipant(room, user));
-        }
-    }
-
-    private void ensureRoomsForAcceptedApplications(Long userId) {
-        User user = userRepository.getReferenceById(userId);
-
-        applicationRepository.findByApplicantAndStatus(user, ApplicationStatus.ACCEPTED)
-                .forEach(this::openRoomForAcceptedApplication);
-        applicationRepository.findByPostAuthorAndStatus(user, ApplicationStatus.ACCEPTED)
-                .forEach(this::openRoomForAcceptedApplication);
+    private ChatRoomParticipant addParticipantIfAbsent(ChatRoom room, User user, boolean companionJoined) {
+        return participantRepository.findByRoomAndUser(room, user)
+                .map((participant) -> {
+                    if (participant.isKicked()) {
+                        throw new ApiException(HttpStatus.FORBIDDEN, "You were removed from this companion.");
+                    }
+                    if (companionJoined) {
+                        participant.joinCompanion();
+                    }
+                    return participant;
+                })
+                .orElseGet(() -> participantRepository.save(new ChatRoomParticipant(room, user, companionJoined)));
     }
 
     private ChatRoom getParticipantRoom(Long userId, Long roomId) {
@@ -106,18 +169,37 @@ public class ChatService {
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Chat room not found."));
         User user = userRepository.getReferenceById(userId);
 
-        if (!participantRepository.existsByRoomAndUser(room, user)) {
+        boolean accessible = participantRepository.findByRoomAndUser(room, user)
+                .filter((participant) -> !participant.isKicked())
+                .isPresent();
+
+        if (!accessible) {
             throw new ApiException(HttpStatus.FORBIDDEN, "You cannot access this chat room.");
         }
 
         return room;
     }
 
-    private ChatRoomResponse toRoomResponse(ChatRoom room) {
-        List<String> participantNicknames = participantRepository.findByRoom(room)
+    private int joinedCount(ChatRoom room) {
+        return (int) participantRepository.findByRoomAndKickedFalse(room)
+                .stream()
+                .filter(ChatRoomParticipant::isCompanionJoined)
+                .count();
+    }
+
+    private ChatRoomResponse toRoomResponse(ChatRoom room, Long currentUserId) {
+        List<ChatRoomParticipant> participants = participantRepository.findByRoomAndKickedFalse(room);
+        List<ChatParticipantResponse> participantResponses = participants
+                .stream()
+                .map(ChatParticipantResponse::from)
+                .toList();
+        List<String> participantNicknames = participants
                 .stream()
                 .map((participant) -> participant.getUser().getNickname())
                 .toList();
+        boolean myCompanionJoined = participants.stream()
+                .filter((participant) -> participant.getUser().getId().equals(currentUserId))
+                .anyMatch(ChatRoomParticipant::isCompanionJoined);
         ChatMessage lastMessage = messageRepository.findTopByRoomOrderByCreatedAtDesc(room)
                 .orElse(null);
 
@@ -125,6 +207,11 @@ public class ChatService {
                 room.getId(),
                 room.getPost().getId(),
                 room.getPost().getTitle(),
+                room.getPost().getAuthor().getId(),
+                joinedCount(room),
+                room.getPost().getMaxParticipants(),
+                myCompanionJoined,
+                participantResponses,
                 participantNicknames,
                 lastMessage == null ? "" : lastMessage.getContent(),
                 lastMessage == null ? null : lastMessage.getCreatedAt()

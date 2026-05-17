@@ -1,8 +1,7 @@
 package com.tripmate.user;
 
-import com.tripmate.application.ApplicationStatus;
-import com.tripmate.application.CompanionApplicationRepository;
 import com.tripmate.auth.CustomUserPrincipal;
+import com.tripmate.chat.ChatRoomParticipantRepository;
 import com.tripmate.common.ApiException;
 import com.tripmate.location.LocationService;
 import com.tripmate.post.CompanionPostRepository;
@@ -30,18 +29,18 @@ import org.springframework.web.bind.annotation.RestController;
 public class UserController {
     private final UserRepository userRepository;
     private final CompanionPostRepository companionPostRepository;
-    private final CompanionApplicationRepository companionApplicationRepository;
+    private final ChatRoomParticipantRepository chatRoomParticipantRepository;
     private final CompanionReviewRepository companionReviewRepository;
     private final LocationService locationService;
 
     public UserController(UserRepository userRepository,
                           CompanionPostRepository companionPostRepository,
-                          CompanionApplicationRepository companionApplicationRepository,
+                          ChatRoomParticipantRepository chatRoomParticipantRepository,
                           CompanionReviewRepository companionReviewRepository,
                           LocationService locationService) {
         this.userRepository = userRepository;
         this.companionPostRepository = companionPostRepository;
-        this.companionApplicationRepository = companionApplicationRepository;
+        this.chatRoomParticipantRepository = chatRoomParticipantRepository;
         this.companionReviewRepository = companionReviewRepository;
         this.locationService = locationService;
     }
@@ -67,7 +66,7 @@ public class UserController {
                 .map(post -> PostResponse.from(
                         post,
                         locationService,
-                        1 + Math.toIntExact(companionApplicationRepository.countByPostAndStatus(post, ApplicationStatus.ACCEPTED))
+                        Math.max(1, Math.toIntExact(chatRoomParticipantRepository.countJoinedParticipantsByPost(post)))
                 ))
                 .toList();
         var reviews = companionReviewRepository.findByRevieweeOrderByCreatedAtDesc(profileUser)

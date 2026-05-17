@@ -32,10 +32,24 @@ public class ChatRoomParticipant extends BaseEntity {
     @JoinColumn(name = "user_id")
     private User user;
 
+    private boolean companionJoined;
+
+    private boolean kicked;
+
     protected ChatRoomParticipant() {}
 
-    public ChatRoomParticipant(ChatRoom room, User user) {
+    public ChatRoomParticipant(ChatRoom room, User user, boolean companionJoined) {
         this.room = room;
         this.user = user;
+        this.companionJoined = companionJoined;
+    }
+
+    public void joinCompanion() {
+        this.companionJoined = true;
+    }
+
+    public void kick() {
+        this.kicked = true;
+        this.companionJoined = false;
     }
 }

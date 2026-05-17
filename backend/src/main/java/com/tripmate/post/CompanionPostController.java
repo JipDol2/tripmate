@@ -1,9 +1,8 @@
 package com.tripmate.post;
 
 import com.tripmate.auth.CustomUserPrincipal;
-import com.tripmate.application.ApplicationStatus;
-import com.tripmate.application.CompanionApplicationRepository;
 import com.tripmate.common.ApiException;
+import com.tripmate.chat.ChatRoomParticipantRepository;
 import com.tripmate.location.LocationService;
 import com.tripmate.user.UserRepository;
 import io.swagger.v3.oas.annotations.Operation;
@@ -31,16 +30,16 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "동행 모집 글", description = "여행 동행 모집 글을 검색, 조회, 생성, 마감하는 API")
 public class CompanionPostController {
     private final CompanionPostRepository companionPostRepository;
-    private final CompanionApplicationRepository companionApplicationRepository;
+    private final ChatRoomParticipantRepository chatRoomParticipantRepository;
     private final LocationService locationService;
     private final UserRepository userRepository;
 
     public CompanionPostController(CompanionPostRepository companionPostRepository,
-                                   CompanionApplicationRepository companionApplicationRepository,
+                                   ChatRoomParticipantRepository chatRoomParticipantRepository,
                                    LocationService locationService,
                                    UserRepository userRepository) {
         this.companionPostRepository = companionPostRepository;
-        this.companionApplicationRepository = companionApplicationRepository;
+        this.chatRoomParticipantRepository = chatRoomParticipantRepository;
         this.locationService = locationService;
         this.userRepository = userRepository;
     }
@@ -118,7 +117,7 @@ public class CompanionPostController {
     }
 
     private PostResponse toPostResponse(CompanionPost post) {
-        int currentParticipants = 1 + Math.toIntExact(companionApplicationRepository.countByPostAndStatus(post, ApplicationStatus.ACCEPTED));
+        int currentParticipants = Math.max(1, Math.toIntExact(chatRoomParticipantRepository.countJoinedParticipantsByPost(post)));
         return PostResponse.from(post, locationService, currentParticipants);
     }
 
