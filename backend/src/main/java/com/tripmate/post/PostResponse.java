@@ -21,6 +21,7 @@ public record PostResponse(
         LocalDate endDate,
         String timeSlot,
         List<CompanionPurpose> purposes,
+        int currentParticipants,
         int maxParticipants,
         String genderPreference,
         List<String> agePreferences,
@@ -30,7 +31,7 @@ public record PostResponse(
         PostStatus status,
         LocalDateTime createdAt
 ) {
-    public static PostResponse from(CompanionPost post, LocationService locationService) {
+    public static PostResponse from(CompanionPost post, LocationService locationService, int currentParticipants) {
         ResolvedLocation location = locationService.resolve(post.getCityCode());
 
         return new PostResponse(
@@ -47,6 +48,7 @@ public record PostResponse(
                 post.getEndDate(),
                 post.getTimeSlot(),
                 List.copyOf(post.getPurposes()),
+                currentParticipants,
                 post.getMaxParticipants(),
                 post.getGenderPreference(),
                 post.getAgePreferences().stream()

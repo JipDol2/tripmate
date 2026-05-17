@@ -2,6 +2,7 @@ package com.tripmate.application;
 
 import com.tripmate.location.LocationService;
 import com.tripmate.location.LocationService.ResolvedLocation;
+import com.tripmate.user.Gender;
 import java.time.LocalDateTime;
 
 public record ApplicationResponse(
@@ -16,6 +17,8 @@ public record ApplicationResponse(
         String endDate,
         Long applicantId,
         String applicantNickname,
+        String applicantAgeRange,
+        Gender applicantGender,
         String message,
         ApplicationStatus status,
         LocalDateTime createdAt
@@ -35,6 +38,8 @@ public record ApplicationResponse(
                 application.getPost().getEndDate() == null ? null : application.getPost().getEndDate().toString(),
                 application.getApplicant().getId(),
                 application.getApplicant().getNickname(),
+                application.getApplicant().getAgeRange(),
+                application.getApplicant().getGender(),
                 application.getMessage(),
                 application.getStatus(),
                 application.getCreatedAt()

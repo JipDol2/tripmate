@@ -2,6 +2,10 @@ package com.tripmate.report;
 
 import com.tripmate.auth.CustomUserPrincipal;
 import com.tripmate.user.UserRepository;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.Map;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -13,6 +17,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/reports")
+@Tag(name = "신고", description = "사용자나 게시글에 대한 신고를 접수하는 API")
+@SecurityRequirement(name = "bearerAuth")
 public class ReportController {
     private final ReportRepository reportRepository;
     private final UserRepository userRepository;
@@ -24,7 +30,8 @@ public class ReportController {
 
     @PostMapping
     @Transactional
-    public Map<String, String> report(@AuthenticationPrincipal CustomUserPrincipal principal,
+    @Operation(summary = "신고 접수", description = "현재 로그인한 사용자가 특정 사용자 또는 동행 모집 글을 사유와 상세 내용과 함께 신고합니다.")
+    public Map<String, String> report(@Parameter(hidden = true) @AuthenticationPrincipal CustomUserPrincipal principal,
                                       @Valid @RequestBody ReportCreateRequest request) {
         reportRepository.save(new Report(
                 userRepository.getReferenceById(principal.getUserId()),

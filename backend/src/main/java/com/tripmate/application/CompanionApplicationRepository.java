@@ -8,6 +8,12 @@ import java.util.List;
 public interface CompanionApplicationRepository extends JpaRepository<CompanionApplication, Long> {
     boolean existsByPostAndApplicant(CompanionPost post, User applicant);
 
+    long countByPostAndStatus(CompanionPost post, ApplicationStatus status);
+
+    List<CompanionApplication> findByApplicantAndStatus(User applicant, ApplicationStatus status);
+
+    List<CompanionApplication> findByPostAuthorAndStatus(User author, ApplicationStatus status);
+
     @Query("select a from CompanionApplication a join fetch a.post p join fetch p.author where a.applicant = :user order by a.createdAt desc")
     List<CompanionApplication> findMyApplications(User user);
 
