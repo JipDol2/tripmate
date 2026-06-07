@@ -9,6 +9,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Column;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
@@ -32,8 +33,10 @@ public class ChatRoomParticipant extends BaseEntity {
     @JoinColumn(name = "user_id")
     private User user;
 
+    @Column(name = "companion_joined", nullable = false)
     private boolean companionJoined;
 
+    @Column(nullable = false)
     private boolean kicked;
 
     protected ChatRoomParticipant() {}

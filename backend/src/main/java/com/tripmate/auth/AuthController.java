@@ -46,7 +46,7 @@ public class AuthController {
         User savedUser = userRepository.save(user);
         String token = authTokenService.issueToken(savedUser.getId());
 
-        return new AuthResponse(token, UserResponse.from(savedUser));
+        return new AuthResponse(token, AuthUserResponse.from(savedUser));
     }
 
     @PostMapping("/login")
@@ -61,7 +61,8 @@ public class AuthController {
         }
 
         String token = authTokenService.issueToken(user.getId());
-        return new AuthResponse(token, UserResponse.from(user));
+        AuthResponse authResponse = new AuthResponse(token, AuthUserResponse.from(user));
+        return authResponse;
     }
 
     @PostMapping("/logout")
