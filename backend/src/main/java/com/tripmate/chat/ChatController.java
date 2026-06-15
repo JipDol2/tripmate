@@ -2,6 +2,7 @@ package com.tripmate.chat;
 
 import com.tripmate.auth.CustomUserPrincipal;
 import java.util.List;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -14,9 +15,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/chats")
 public class ChatController {
     private final ChatService chatService;
+    private final ChatRoomEventBroadcaster eventBroadcaster;
 
-    public ChatController(ChatService chatService) {
+    public ChatController(ChatService chatService, ChatRoomEventBroadcaster eventBroadcaster) {
         this.chatService = chatService;
+        this.eventBroadcaster = eventBroadcaster;
     }
 
     @GetMapping("/rooms")
@@ -42,11 +45,19 @@ public class ChatController {
         return chatService.joinCompanion(principal.getUserId(), roomId);
     }
 
-    @PatchMapping("/rooms/{roomId}/participants/{participantId}/kick")
-    public ChatRoomResponse kickParticipant(@AuthenticationPrincipal CustomUserPrincipal principal,
-                                            @PathVariable Long roomId,
-                                            @PathVariable Long participantId) {
-        return chatService.kickParticipant(principal.getUserId(), roomId, participantId);
+    @PatchMapping("/rooms/{roomId}/leave")
+    public ResponseEntity<Void> leaveRoom(@AuthenticationPrincipal CustomUserPrincipal principal,
+                                          @PathVariable Long roomId) {
+        ChatRoomLeaveEvent event = chatService.leaveRoom(principal.getUserId(), roomId);
+        eventBroadcaster.broadcast(roomId, event);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/rooms/{roomId}/read")
+    public ResponseEntity<Void> markRoomAsRead(@AuthenticationPrincipal CustomUserPrincipal principal,
+                                               @PathVariable Long roomId) {
+        chatService.markRoomAsRead(principal.getUserId(), roomId);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/rooms/{roomId}/messages")

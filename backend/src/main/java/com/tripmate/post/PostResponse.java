@@ -29,9 +29,12 @@ public record PostResponse(
         String content,
         List<String> travelStyles,
         PostStatus status,
+        boolean tripEnded,
+        LocalDateTime tripEndedAt,
         LocalDateTime createdAt
 ) {
-    public static PostResponse from(CompanionPost post, LocationService locationService, int currentParticipants) {
+    public static PostResponse from(CompanionPost post, LocationService locationService, int currentParticipants,
+                                    boolean tripEnded, LocalDateTime tripEndedAt) {
         ResolvedLocation location = locationService.resolve(post.getCityCode());
 
         return new PostResponse(
@@ -60,6 +63,8 @@ public record PostResponse(
                         .filter(Objects::nonNull)
                         .toList(),
                 post.getStatus(),
+                tripEnded,
+                tripEndedAt,
                 post.getCreatedAt()
         );
     }

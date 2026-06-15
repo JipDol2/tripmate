@@ -15,6 +15,8 @@ public interface ChatRoomParticipantRepository extends JpaRepository<ChatRoomPar
 
     List<ChatRoomParticipant> findByRoomAndKickedFalse(ChatRoom room);
 
-    @Query("select count(p) from ChatRoomParticipant p where p.room.post = :post and p.companionJoined = true and p.kicked = false")
+    List<ChatRoomParticipant> findByRoomAndCompanionJoinedTrueAndKickedFalse(ChatRoom room);
+
+    @Query("select count(distinct p.user.id) from ChatRoomParticipant p where p.room.post = :post and p.companionJoined = true and p.kicked = false")
     long countJoinedParticipantsByPost(@Param("post") CompanionPost post);
 }

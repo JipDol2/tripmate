@@ -12,11 +12,15 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 
 @Getter
 @Entity
-@Table(name = "companion_reviews")
+@Table(
+        name = "companion_reviews",
+        uniqueConstraints = @UniqueConstraint(columnNames = {"reviewer_id", "reviewee_id", "post_id"})
+)
 public class CompanionReview extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -41,4 +45,12 @@ public class CompanionReview extends BaseEntity {
     private String content;
 
     protected CompanionReview() {}
+
+    public CompanionReview(User reviewer, User reviewee, CompanionPost post, int rating, String content) {
+        this.reviewer = reviewer;
+        this.reviewee = reviewee;
+        this.post = post;
+        this.rating = rating;
+        this.content = content;
+    }
 }

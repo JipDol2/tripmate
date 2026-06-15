@@ -11,8 +11,11 @@ public record ChatRoomResponse(
         int currentParticipants,
         int maxParticipants,
         boolean myCompanionJoined,
+        boolean tripEnded,
+        LocalDateTime endedAt,
         List<ChatParticipantResponse> participants,
         List<String> participantNicknames,
         String lastMessage,
-        LocalDateTime lastMessageAt
+        LocalDateTime lastMessageAt,
+        long unreadCount
 ) {}

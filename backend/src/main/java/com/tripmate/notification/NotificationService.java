@@ -1,6 +1,7 @@
 package com.tripmate.notification;
 
 import com.tripmate.application.CompanionApplication;
+import com.tripmate.chat.ChatRoom;
 import com.tripmate.post.CompanionPost;
 import com.tripmate.user.User;
 import org.springframework.stereotype.Service;
@@ -42,6 +43,20 @@ public class NotificationService {
                 "동행 요청 거절",
                 "'" + application.getPost().getTitle() + "' 동행 요청이 거절되었습니다."
         );
+    }
+
+    public void notifyChatStarted(CompanionPost post, User sender, ChatRoom room) {
+        if (post.getAuthor().getId().equals(sender.getId())) {
+            return;
+        }
+
+        notificationRepository.save(new Notification(
+                post.getAuthor(),
+                NotificationType.CHAT_STARTED,
+                "새 대화 요청",
+                sender.getNickname() + "님이 '" + post.getTitle() + "' 동행글에서 대화를 시작했습니다.",
+                "/chats/" + room.getId()
+        ));
     }
 
     private void notifyApplicationResult(CompanionApplication application, NotificationType type, String title, String message) {

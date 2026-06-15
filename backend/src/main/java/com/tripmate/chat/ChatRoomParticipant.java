@@ -14,6 +14,8 @@ import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 
+import java.time.LocalDateTime;
+
 @Getter
 @Entity
 @Table(
@@ -39,20 +41,27 @@ public class ChatRoomParticipant extends BaseEntity {
     @Column(nullable = false)
     private boolean kicked;
 
+    private LocalDateTime lastReadAt;
+
     protected ChatRoomParticipant() {}
 
     public ChatRoomParticipant(ChatRoom room, User user, boolean companionJoined) {
         this.room = room;
         this.user = user;
         this.companionJoined = companionJoined;
+        this.lastReadAt = LocalDateTime.now();
     }
 
     public void joinCompanion() {
         this.companionJoined = true;
     }
 
-    public void kick() {
+    public void leave() {
         this.kicked = true;
         this.companionJoined = false;
+    }
+
+    public void markAsRead() {
+        this.lastReadAt = LocalDateTime.now();
     }
 }

@@ -1,6 +1,7 @@
 package com.tripmate.user;
 
 import com.tripmate.auth.CustomUserPrincipal;
+import com.tripmate.chat.ChatRoomRepository;
 import com.tripmate.chat.ChatRoomParticipantRepository;
 import com.tripmate.common.ApiException;
 import com.tripmate.location.LocationService;
@@ -30,17 +31,20 @@ public class UserController {
     private final UserRepository userRepository;
     private final CompanionPostRepository companionPostRepository;
     private final ChatRoomParticipantRepository chatRoomParticipantRepository;
+    private final ChatRoomRepository chatRoomRepository;
     private final CompanionReviewRepository companionReviewRepository;
     private final LocationService locationService;
 
     public UserController(UserRepository userRepository,
                           CompanionPostRepository companionPostRepository,
                           ChatRoomParticipantRepository chatRoomParticipantRepository,
+                          ChatRoomRepository chatRoomRepository,
                           CompanionReviewRepository companionReviewRepository,
                           LocationService locationService) {
         this.userRepository = userRepository;
         this.companionPostRepository = companionPostRepository;
         this.chatRoomParticipantRepository = chatRoomParticipantRepository;
+        this.chatRoomRepository = chatRoomRepository;
         this.companionReviewRepository = companionReviewRepository;
         this.locationService = locationService;
     }
@@ -63,11 +67,16 @@ public class UserController {
 
         var posts = companionPostRepository.findByAuthorOrderByCreatedAtDesc(profileUser)
                 .stream()
-                .map(post -> PostResponse.from(
-                        post,
-                        locationService,
-                        Math.max(1, Math.toIntExact(chatRoomParticipantRepository.countJoinedParticipantsByPost(post)))
-                ))
+                .map((post) -> {
+                    var endedRoom = chatRoomRepository.findFirstByPostIdAndEndedAtIsNotNullOrderByEndedAtDesc(post.getId()).orElse(null);
+                    return PostResponse.from(
+                            post,
+                            locationService,
+                            Math.max(1, Math.toIntExact(chatRoomParticipantRepository.countJoinedParticipantsByPost(post))),
+                            endedRoom != null,
+                            endedRoom == null ? null : endedRoom.getEndedAt()
+                    );
+                })
                 .toList();
         var reviews = companionReviewRepository.findByRevieweeOrderByCreatedAtDesc(profileUser)
                 .stream()

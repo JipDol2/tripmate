@@ -6,9 +6,6 @@ import com.tripmate.auth.JwtTokenProvider;
 import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -21,16 +18,18 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
     private final JwtTokenProvider jwtTokenProvider;
     private final AuthTokenService authTokenService;
     private final ObjectMapper objectMapper;
-    private final Map<Long, Set<WebSocketSession>> sessionsByRoom = new ConcurrentHashMap<>();
+    private final ChatRoomEventBroadcaster eventBroadcaster;
 
     public ChatWebSocketHandler(ChatService chatService,
                                 JwtTokenProvider jwtTokenProvider,
                                 AuthTokenService authTokenService,
-                                ObjectMapper objectMapper) {
+                                ObjectMapper objectMapper,
+                                ChatRoomEventBroadcaster eventBroadcaster) {
         this.chatService = chatService;
         this.jwtTokenProvider = jwtTokenProvider;
         this.authTokenService = authTokenService;
         this.objectMapper = objectMapper;
+        this.eventBroadcaster = eventBroadcaster;
     }
 
     @Override
@@ -52,7 +51,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
 
         session.getAttributes().put("roomId", roomId);
         session.getAttributes().put("userId", userId);
-        sessionsByRoom.computeIfAbsent(roomId, ignored -> ConcurrentHashMap.newKeySet()).add(session);
+        eventBroadcaster.add(roomId, session);
     }
 
     @Override
@@ -75,13 +74,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
             return;
         }
 
-        String payload = objectMapper.writeValueAsString(response);
-
-        for (WebSocketSession roomSession : sessionsByRoom.getOrDefault(roomId, Set.of())) {
-            if (roomSession.isOpen()) {
-                roomSession.sendMessage(new TextMessage(payload));
-            }
-        }
+        eventBroadcaster.broadcastPayload(roomId, objectMapper.writeValueAsString(response));
     }
 
     @Override
@@ -91,13 +84,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
             return;
         }
 
-        Set<WebSocketSession> sessions = sessionsByRoom.get(roomId);
-        if (sessions != null) {
-            sessions.remove(session);
-            if (sessions.isEmpty()) {
-                sessionsByRoom.remove(roomId);
-            }
-        }
+        eventBroadcaster.remove(roomId, session);
     }
 
     private Long getLongQueryParam(URI uri, String key) {

@@ -1,6 +1,8 @@
 package com.tripmate.post;
 
 import com.tripmate.auth.CustomUserPrincipal;
+import com.tripmate.chat.ChatRoomRepository;
+import com.tripmate.chat.ChatService;
 import com.tripmate.common.ApiException;
 import com.tripmate.chat.ChatRoomParticipantRepository;
 import com.tripmate.location.LocationService;
@@ -31,15 +33,21 @@ import org.springframework.web.bind.annotation.RestController;
 public class CompanionPostController {
     private final CompanionPostRepository companionPostRepository;
     private final ChatRoomParticipantRepository chatRoomParticipantRepository;
+    private final ChatRoomRepository chatRoomRepository;
+    private final ChatService chatService;
     private final LocationService locationService;
     private final UserRepository userRepository;
 
     public CompanionPostController(CompanionPostRepository companionPostRepository,
                                    ChatRoomParticipantRepository chatRoomParticipantRepository,
+                                   ChatRoomRepository chatRoomRepository,
+                                   ChatService chatService,
                                    LocationService locationService,
                                    UserRepository userRepository) {
         this.companionPostRepository = companionPostRepository;
         this.chatRoomParticipantRepository = chatRoomParticipantRepository;
+        this.chatRoomRepository = chatRoomRepository;
+        this.chatService = chatService;
         this.locationService = locationService;
         this.userRepository = userRepository;
     }
@@ -116,9 +124,26 @@ public class CompanionPostController {
         return toPostResponse(post);
     }
 
+    @PatchMapping("/{postId}/end-trip")
+    @Transactional
+    @Operation(summary = "여행 종료", description = "동행 모집 글 작성자가 여행을 종료하고 참가자 평가를 열 수 있도록 처리합니다.")
+    @SecurityRequirement(name = "bearerAuth")
+    public PostResponse endTrip(@Parameter(hidden = true) @AuthenticationPrincipal CustomUserPrincipal principal,
+                                @PathVariable Long postId) {
+        CompanionPost post = chatService.endTripByPost(principal.getUserId(), postId);
+        return toPostResponse(post);
+    }
+
     private PostResponse toPostResponse(CompanionPost post) {
         int currentParticipants = Math.max(1, Math.toIntExact(chatRoomParticipantRepository.countJoinedParticipantsByPost(post)));
-        return PostResponse.from(post, locationService, currentParticipants);
+        var endedRoom = chatRoomRepository.findFirstByPostIdAndEndedAtIsNotNullOrderByEndedAtDesc(post.getId()).orElse(null);
+        return PostResponse.from(
+                post,
+                locationService,
+                currentParticipants,
+                endedRoom != null,
+                endedRoom == null ? null : endedRoom.getEndedAt()
+        );
     }
 
     private void validateDateRange(LocalDate startDate, LocalDate endDate) {

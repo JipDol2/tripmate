@@ -8,9 +8,11 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.OneToOne;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
+
+import java.time.LocalDateTime;
 
 @Getter
 @Entity
@@ -20,13 +22,25 @@ public class ChatRoom extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @OneToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "post_id", unique = true)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "post_id")
     private CompanionPost post;
+
+    private LocalDateTime endedAt;
 
     protected ChatRoom() {}
 
     public ChatRoom(CompanionPost post) {
         this.post = post;
+    }
+
+    public boolean isTripEnded() {
+        return endedAt != null;
+    }
+
+    public void endTrip() {
+        if (endedAt == null) {
+            endedAt = LocalDateTime.now();
+        }
     }
 }
