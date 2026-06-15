@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, getErrorMessage } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { formatDateRange } from "../lib/postDate";
@@ -20,9 +20,9 @@ function formatWrittenDate(value) {
 
 export default function PostDetailPage() {
   const { postId } = useParams();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [post, setPost] = useState(null);
-  const [message, setMessage] = useState("");
 
   const loadPost = async () => {
     try {
@@ -35,18 +35,12 @@ export default function PostDetailPage() {
 
   useEffect(() => {
     loadPost();
-  }, [postId]);
+  }, [postId, user?.id]);
 
-  const apply = async () => {
-    if (!message.trim()) {
-      alert("요청 메시지를 입력해 주세요.");
-      return;
-    }
-
+  const startChat = async () => {
     try {
-      await api.post(`/applications/posts/${postId}`, { message });
-      alert("동행 요청이 완료되었습니다.");
-      setMessage("");
+      const res = await api.post(`/chats/posts/${postId}/start`);
+      navigate(`/chats/${res.data.id}`);
     } catch (error) {
       alert(getErrorMessage(error));
     }
@@ -69,6 +63,20 @@ export default function PostDetailPage() {
     }
   };
 
+  const endTrip = async () => {
+    if (!confirm("여행을 종료하고 참가자 평가를 열까요?")) {
+      return;
+    }
+
+    try {
+      const res = await api.patch(`/posts/${postId}/end-trip`);
+      setPost(res.data);
+      alert("여행이 종료되었습니다. 참가자들이 서로 평가할 수 있습니다.");
+    } catch (error) {
+      alert(getErrorMessage(error));
+    }
+  };
+
   if (!post) return <section className="page">로딩 중...</section>;
 
   const isAuthor = user?.id === post.authorId;
@@ -86,7 +94,7 @@ export default function PostDetailPage() {
   const conditionChips = [
     ...(agePreferences.length > 0 ? agePreferences : ["나이 무관"]),
     post.genderPreference && post.genderPreference !== "무관" ? post.genderPreference : "성별 무관",
-    `${post.maxParticipants}명 모집`,
+    `${post.currentParticipants || 1}/${post.maxParticipants}명 참여`,
   ];
   const typeChips = [
     post.timeSlot,
@@ -100,6 +108,7 @@ export default function PostDetailPage() {
           <div className="card-top">
             <span className="badge">{post.city}</span>
             <span className={`status ${post.status === "OPEN" ? "open" : ""}`}>{post.status}</span>
+            {post.tripEnded && <span className="status applied">여행 종료</span>}
           </div>
 
           <h1 className="detail-title">{post.title}</h1>
@@ -162,26 +171,30 @@ export default function PostDetailPage() {
 
         <section className="detail-section detail-section-compact">
           <h2>여행장</h2>
-          <div className="detail-host-card">
+          <Link className="detail-host-card" to={`/users/${post.authorId}`}>
             <div className="detail-host-avatar">{post.authorNickname?.slice(0, 1) || "T"}</div>
             <div>
               <strong>{post.authorNickname}</strong>
               {authorMeta && <span>{authorMeta}</span>}
             </div>
-          </div>
+            <span className="menu-arrow">›</span>
+          </Link>
         </section>
       </article>
 
-      {!isAuthor && user && (
+      {user && (
         <div className="apply-box">
-          <h2>동행 요청</h2>
-          <textarea
-            placeholder="간단한 자기소개와 함께하고 싶은 이유를 적어 주세요."
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-          />
-          <button className="primary-button" onClick={apply}>요청하기</button>
-          <button className="danger-button" onClick={report}>신고하기</button>
+          <h2>{isAuthor ? "동행 관리" : "동행 대화"}</h2>
+          <p className="meta">
+            {isAuthor
+              ? post.tripEnded ? "종료된 여행입니다." : "여행이 끝났다면 참가자 평가를 열 수 있어요."
+              : post.tripEnded ? "종료된 여행입니다. 참가자는 채팅방에서 서로를 평가할 수 있어요." : "먼저 대화해 보고, 채팅방 안에서 참가 여부를 결정할 수 있어요."}
+          </p>
+          {!isAuthor && <button className="primary-button" onClick={startChat}>대화하기</button>}
+          {isAuthor && !post.tripEnded && (
+            <button className="danger-button" onClick={endTrip} type="button">여행 종료</button>
+          )}
+          {!isAuthor && <button className="danger-button" onClick={report}>신고하기</button>}
         </div>
       )}
 

@@ -8,8 +8,12 @@ import RegisterPage from "./pages/RegisterPage";
 import PostListPage from "./pages/PostListPage";
 import PostDetailPage from "./pages/PostDetailPage";
 import PostCreatePage from "./pages/PostCreatePage";
-import ApplicationsPage from "./pages/ApplicationsPage";
 import ProfilePage from "./pages/ProfilePage";
+import MyPostsPage from "./pages/MyPostsPage";
+import NotificationsPage from "./pages/NotificationsPage";
+import PublicProfilePage from "./pages/PublicProfilePage";
+import ChatRoomsPage from "./pages/ChatRoomsPage";
+import ChatRoomPage from "./pages/ChatRoomPage";
 import "./styles.css";
 
 function ProtectedRoute({ children }) {
@@ -29,8 +33,12 @@ function App() {
             <Route path="/" element={<ProtectedRoute><PostListPage /></ProtectedRoute>} />
             <Route path="/posts/:postId" element={<PostDetailPage />} />
             <Route path="/posts/new" element={<ProtectedRoute><PostCreatePage /></ProtectedRoute>} />
-            <Route path="/applications" element={<ProtectedRoute><ApplicationsPage /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+            <Route path="/my/posts" element={<ProtectedRoute><MyPostsPage /></ProtectedRoute>} />
+            <Route path="/chats" element={<ProtectedRoute><ChatRoomsPage /></ProtectedRoute>} />
+            <Route path="/chats/:roomId" element={<ProtectedRoute><ChatRoomPage /></ProtectedRoute>} />
+            <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
+            <Route path="/users/:userId" element={<ProtectedRoute><PublicProfilePage /></ProtectedRoute>} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
           </Route>

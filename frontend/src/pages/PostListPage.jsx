@@ -179,6 +179,7 @@ export default function PostListPage() {
           return searchParams.toString();
         },
       });
+
       setPosts(filterPostsByDateRange(res.data, nextFilters.startDate, nextFilters.endDate));
     } catch (error) {
       alert(getErrorMessage(error));
@@ -359,6 +360,7 @@ export default function PostListPage() {
             </div>
             <h2>{post.title}</h2>
             <p>{formatDateRange(post.startDate, post.endDate)} · {post.timeSlot}</p>
+            <p className="meta">{post.currentParticipants || 1}/{post.maxParticipants}명 참여</p>
             <p className="meta">{post.authorNickname} · {post.authorAgeRange} · {post.authorGender}</p>
             <div className="tag-row">
               {post.purposes?.map((purpose) => <span key={purpose}>{getPurposeLabel(purpose)}</span>)}
